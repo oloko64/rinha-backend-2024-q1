@@ -10,11 +10,7 @@ lto = true
 strip = true
 
 [dependencies]
-sqlx = { version = "0.7.3", features = [
-    "sqlite",
-    "runtime-tokio-rustls",
-    "chrono",
-] }
+sqlx = { version = "0.7.3", features = ["sqlite", "runtime-tokio", "chrono"] }
 tokio = { version = "1.36.0", features = ["full"] }
 axum = "0.7.4"
 chrono = { version = "0.4.33", features = ["serde"] }

@@ -1,4 +1,7 @@
-use std::{env, str::FromStr, sync::Arc};
+mod database;
+mod error;
+mod models;
+mod responses;
 
 use axum::{
     extract::{Path, State},
@@ -7,20 +10,20 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use sqlx::{
-    pool::PoolConnection,
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    Acquire, Sqlite,
-};
-use tokio::sync::Mutex;
+use database::{AppState, Database};
+use error::ApiError;
+use models::{ClientRepository, TransactionRequest, TransactionType};
+use responses::{ClientResponse, ExtratoResponse};
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use std::{env, str::FromStr, sync::Arc};
 
-type DbPool = Arc<Mutex<sqlx::SqlitePool>>;
+type DbPool = Arc<AppState>;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
 
-    let conn = SqlitePoolOptions::new()
+    let pool = SqlitePoolOptions::new()
         .max_connections(100)
         .connect_with(SqliteConnectOptions::from_str(&env::var("DATABASE_URL")?)?)
         .await?;
@@ -30,12 +33,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     .await
     //     .expect("Failed to run migrations");
 
-    let state = Arc::new(Mutex::new(conn));
+    let state = Arc::new(AppState {
+        db: Database::new(pool),
+    });
 
     // build our application with a single route
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/clientes/:id/transacoes", post(make_transaction))
+        .route("/clientes/:id/extrato", get(get_transactions))
         .with_state(Arc::clone(&state));
 
     // run our app with hyper, listening globally on port 3000
@@ -45,152 +51,68 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+async fn get_transactions(
+    Path(id): Path<i64>,
+    State(state): State<DbPool>,
+) -> Result<impl IntoResponse, ApiError> {
+    let client = state.db.get_client(id).await?;
+
+    if let Some(client) = client {
+        let extrato = state.db.get_extrato(client).await?;
+        let extrato_response: ExtratoResponse = extrato.into();
+        return Ok((StatusCode::OK, Json(extrato_response)).into_response());
+    }
+
+    Err(ApiError::not_found(format!(
+        "Client with id {id} not found"
+    )))
+}
+
 async fn make_transaction(
     Path(id): Path<i64>,
-    State(pool): State<DbPool>,
-    Json(transaction): Json<Transaction>,
-) -> impl IntoResponse {
-    let transaction_desc_size = transaction.description.chars().count();
-    if transaction_desc_size < 1 || transaction_desc_size > 10 {
-        return (
-            StatusCode::BAD_REQUEST,
-            "Invalid description size".to_string(),
-        );
+    State(state): State<DbPool>,
+    Json(transaction_req): Json<TransactionRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    let transaction_desc_size = transaction_req.description.chars().count();
+    if !(1..=10).contains(&transaction_desc_size) {
+        return Err(ApiError::bad_request("Invalid description size"));
     }
 
-    let mut pool = pool.lock().await.acquire().await.unwrap();
+    let client = state.db.get_client(id).await?;
 
-    let client = get_client(id, &mut pool).await;
-
-    if let Ok(client) = client {
+    if let Some(client) = client {
         let mut balance = client.balance;
-        if transaction.transaction_type == TransactionType::Debit {
-            balance -= transaction.amount as i64;
-        } else {
-            balance += transaction.amount as i64;
+        match transaction_req.transaction_type {
+            TransactionType::Debit => {
+                balance -= transaction_req.amount as i64;
+            }
+            TransactionType::Credit => {
+                balance += transaction_req.amount as i64;
+            }
         }
         if balance < -client.balance_limit {
-            return (
-                StatusCode::BAD_REQUEST,
-                "Balance limit exceeded".to_string(),
-            );
+            return Err(ApiError::bad_request("Balance limit exceeded"));
         }
 
-        let mut db_transaction = pool.begin().await.unwrap();
+        let client = state
+            .db
+            .update_client_balance(
+                id,
+                balance,
+                transaction_req.amount,
+                transaction_req.description,
+                transaction_req.transaction_type,
+            )
+            .await?;
 
-        update_client_balance(id, balance, &mut db_transaction)
-            .await
-            .unwrap();
-
-        insert_transaction(
-            id,
-            transaction.amount as i64,
-            &transaction.description,
-            transaction.transaction_type.into(),
-            &mut db_transaction,
-        )
-        .await
-        .unwrap();
-
-        let client = get_client(id, &mut db_transaction).await.unwrap();
-
-        db_transaction.commit().await.unwrap();
-
-        return (StatusCode::OK, format!("{:?}", client));
-    }
-
-    (
-        StatusCode::NOT_FOUND,
-        format!("Client with id {} not found", id),
-    )
-}
-
-async fn get_client(id: i64, pool: &mut PoolConnection<Sqlite>) -> Result<Client, sqlx::Error> {
-    sqlx::query_as!(Client, "SELECT * FROM clients WHERE id = ?", id)
-        .fetch_one(&mut **pool)
-        .await
-}
-
-async fn update_client_balance(
-    id: i64,
-    amount: i64,
-    pool: &mut sqlx::Transaction<'_, Sqlite>,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!("UPDATE clients SET balance = ? WHERE id = ?", amount, id)
-        .execute(&mut **pool)
-        .await?;
-
-    Ok(())
-}
-
-async fn insert_transaction(
-    client_id: i64,
-    amount: i64,
-    description: &str,
-    transaction_type: &str,
-    pool: &mut sqlx::Transaction<'_, Sqlite>,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "INSERT INTO transactions (client_id, amount, description, type) VALUES (?, ?, ?, ?)",
-        client_id,
-        amount,
-        description,
-        transaction_type
-    )
-    .execute(&mut **pool)
-    .await?;
-
-    Ok(())
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
-struct Client {
-    #[serde(skip_serializing)]
-    id: i64,
-
-    balance_limit: i64,
-    balance: i64,
-    created_at: sqlx::types::chrono::NaiveDateTime,
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
-struct Transaction {
-    #[serde(rename = "valor")]
-    amount: u64,
-
-    #[serde(rename = "descricao")]
-    description: String,
-
-    #[serde(rename = "tipo")]
-    transaction_type: TransactionType,
-}
-
-#[derive(serde::Deserialize, serde::Serialize, PartialEq)]
-enum TransactionType {
-    #[serde(rename = "d")]
-    Debit,
-
-    #[serde(rename = "c")]
-    Credit,
-}
-
-impl From<TransactionType> for &'static str {
-    fn from(t: TransactionType) -> &'static str {
-        match t {
-            TransactionType::Debit => "d",
-            TransactionType::Credit => "c",
+        if let Some(client) = client {
+            let client_response: ClientResponse = client.into();
+            return Ok((StatusCode::OK, Json(client_response)).into_response());
         }
+        return Err(ApiError::internal_server_error("Failed to update client"));
     }
-}
 
-impl FromStr for TransactionType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "d" => Ok(Self::Debit),
-            "c" => Ok(Self::Credit),
-            _ => Err("Invalid transaction type".to_string()),
-        }
-    }
+    Err(ApiError::not_found(format!(
+        "Client with id {id} not found"
+    )))
 }
