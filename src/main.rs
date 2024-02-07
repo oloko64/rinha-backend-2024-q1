@@ -13,7 +13,7 @@ use axum::{
 };
 use database::{AppState, Database};
 use routes::{get_transactions, make_transaction};
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use std::{env, str::FromStr, sync::Arc};
 use tower::ServiceBuilder;
 use tower_http::{catch_panic::CatchPanicLayer, trace::TraceLayer};
@@ -30,9 +30,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer().with_target(false))
         .init();
 
-    let pool = SqlitePoolOptions::new()
+    let pool = PgPoolOptions::new()
         .max_connections(100)
-        .connect_with(SqliteConnectOptions::from_str(&env::var("DATABASE_URL")?)?)
+        .connect_with(PgConnectOptions::from_str(&env::var("DATABASE_URL")?)?)
         .await?;
 
     // sqlx::migrate!()

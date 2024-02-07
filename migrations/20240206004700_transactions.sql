@@ -1,9 +1,9 @@
 -- Add migration script here
 
 CREATE TABLE transactions (
-  id INTEGER PRIMARY KEY NOT NULL,
-  client_id INTEGER REFERENCES clients(id) NOT NULL,
-  amount INTEGER NOT NULL,
+  id BIGSERIAL PRIMARY KEY,
+  client_id BIGINT REFERENCES clients(id) NOT NULL,
+  amount BIGINT NOT NULL,
   description TEXT NOT NULL,
   type TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL

@@ -1,9 +1,9 @@
 -- Add migration script here
 
 CREATE TABLE clients (
-  id INTEGER PRIMARY KEY NOT NULL,
-  balance_limit INTEGER DEFAULT 0 NOT NULL,
-  balance INTEGER DEFAULT 0 NOT NULL,
+  id BIGSERIAL PRIMARY KEY,
+  balance_limit BIGINT DEFAULT 0 NOT NULL,
+  balance BIGINT DEFAULT 0 NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

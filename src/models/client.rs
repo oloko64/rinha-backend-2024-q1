@@ -56,7 +56,7 @@ impl ClientRepository for Database {
         let mut conn = self.get_pool().acquire().await?;
 
         Ok(
-            sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = ?", id)
+            sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)
                 .fetch_optional(&mut *conn)
                 .await?,
         )
@@ -72,14 +72,14 @@ impl ClientRepository for Database {
     ) -> Result<Option<ClientModel>, ApiError> {
         let mut transaction = self.get_pool().begin().await?;
 
-        sqlx::query!("UPDATE clients SET balance = ? WHERE id = ?", balance, id)
+        sqlx::query!("UPDATE clients SET balance = $1 WHERE id = $2", balance, id)
             .execute(&mut *transaction)
             .await?;
 
         let transaction_type: &str = transaction_type.into();
         let transaction_amount: i64 = transaction_amount.try_into()?;
         sqlx::query!(
-            "INSERT INTO transactions (client_id, amount, description, type) VALUES (?, ?, ?, ?)",
+            "INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)",
             id,
             transaction_amount,
             description,
@@ -99,7 +99,7 @@ impl ClientRepository for Database {
         let mut conn = self.get_pool().acquire().await?;
         let transactions = sqlx::query_as!(
             TransactionModel,
-            "SELECT * FROM transactions WHERE client_id = ? ORDER BY created_at DESC LIMIT 10",
+            "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
             client.id
         )
         .fetch_all(&mut *conn)

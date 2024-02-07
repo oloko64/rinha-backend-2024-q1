@@ -20,7 +20,7 @@ impl From<ExtratoModel> for ExtratoResponse {
                     extrato.saldo.date,
                     chrono::Utc,
                 )
-                .to_rfc3339_opts(SecondsFormat::Millis, true),
+                .to_rfc3339_opts(SecondsFormat::Micros, true),
             },
             transacoes: extrato
                 .transactions
@@ -33,7 +33,7 @@ impl From<ExtratoModel> for ExtratoResponse {
                         t.created_at,
                         chrono::Utc,
                     )
-                    .to_rfc3339_opts(SecondsFormat::Millis, true),
+                    .to_rfc3339_opts(SecondsFormat::Micros, true),
                 })
                 .collect(),
         }

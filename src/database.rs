@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 #[derive(Debug)]
 pub struct AppState {
@@ -7,15 +7,15 @@ pub struct AppState {
 
 #[derive(Debug)]
 pub struct Database {
-    pool: SqlitePool,
+    pool: PgPool,
 }
 
 impl Database {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
-    pub fn get_pool(&self) -> &SqlitePool {
+    pub fn get_pool(&self) -> &PgPool {
         &self.pool
     }
 }
