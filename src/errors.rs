@@ -1,4 +1,7 @@
+use std::num::TryFromIntError;
+
 use axum::{http::StatusCode, response::IntoResponse};
+use tracing::error;
 
 #[derive(Debug)]
 pub enum ApiError {
@@ -43,15 +46,27 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         match self {
             ApiError::NotFound(msg) => {
-                (StatusCode::NOT_FOUND, msg.unwrap_or_default()).into_response()
+                let msg = msg.unwrap_or_default();
+                error!("NOT_FOUND: {}", msg);
+                (StatusCode::NOT_FOUND, msg).into_response()
             }
             ApiError::InternalServerError(msg) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, msg.unwrap_or_default()).into_response()
+                let msg = msg.unwrap_or_default();
+                error!("INTERNAL_SERVER_ERROR: {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
             }
             ApiError::BadRequest(msg) => {
-                (StatusCode::BAD_REQUEST, msg.unwrap_or_default()).into_response()
+                let msg = msg.unwrap_or_default();
+                error!("BAD_REQUEST: {}", msg);
+                (StatusCode::BAD_REQUEST, msg).into_response()
             }
         }
+    }
+}
+
+impl From<TryFromIntError> for ApiError {
+    fn from(_: TryFromIntError) -> Self {
+        ApiError::InternalServerError(Some("Conversion overflow".to_string()))
     }
 }
 

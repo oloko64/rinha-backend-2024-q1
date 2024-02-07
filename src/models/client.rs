@@ -1,4 +1,4 @@
-use crate::database::Database;
+use crate::{database::Database, errors::ApiError};
 
 use super::{TransactionModel, TransactionType};
 
@@ -39,7 +39,7 @@ pub struct SaldoModel {
 }
 
 pub trait ClientRepository {
-    async fn get_client(&self, id: i64) -> Result<Option<ClientModel>, sqlx::Error>;
+    async fn get_client(&self, id: i64) -> Result<Option<ClientModel>, ApiError>;
     async fn update_client_balance(
         &self,
         id: i64,
@@ -47,17 +47,19 @@ pub trait ClientRepository {
         transaction_amount: u64,
         description: String,
         transaction_type: TransactionType,
-    ) -> Result<Option<ClientModel>, sqlx::Error>;
-    async fn get_extrato(&self, client: ClientModel) -> Result<ExtratoModel, sqlx::Error>;
+    ) -> Result<Option<ClientModel>, ApiError>;
+    async fn get_extrato(&self, client: ClientModel) -> Result<ExtratoModel, ApiError>;
 }
 
 impl ClientRepository for Database {
-    async fn get_client(&self, id: i64) -> Result<Option<ClientModel>, sqlx::Error> {
+    async fn get_client(&self, id: i64) -> Result<Option<ClientModel>, ApiError> {
         let mut conn = self.get_pool().acquire().await?;
 
-        sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = ?", id)
-            .fetch_optional(&mut *conn)
-            .await
+        Ok(
+            sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = ?", id)
+                .fetch_optional(&mut *conn)
+                .await?,
+        )
     }
 
     async fn update_client_balance(
@@ -67,7 +69,7 @@ impl ClientRepository for Database {
         transaction_amount: u64,
         description: String,
         transaction_type: TransactionType,
-    ) -> Result<Option<ClientModel>, sqlx::Error> {
+    ) -> Result<Option<ClientModel>, ApiError> {
         let mut transaction = self.get_pool().begin().await?;
 
         sqlx::query!("UPDATE clients SET balance = ? WHERE id = ?", balance, id)
@@ -75,7 +77,7 @@ impl ClientRepository for Database {
             .await?;
 
         let transaction_type: &str = transaction_type.into();
-        let transaction_amount = transaction_amount as i64;
+        let transaction_amount: i64 = transaction_amount.try_into()?;
         sqlx::query!(
             "INSERT INTO transactions (client_id, amount, description, type) VALUES (?, ?, ?, ?)",
             id,
@@ -86,14 +88,14 @@ impl ClientRepository for Database {
         .execute(&mut *transaction)
         .await?;
 
-        let client = self.get_client(id).await?;
-
         transaction.commit().await?;
+
+        let client = self.get_client(id).await?;
 
         Ok(client)
     }
 
-    async fn get_extrato(&self, client: ClientModel) -> Result<ExtratoModel, sqlx::Error> {
+    async fn get_extrato(&self, client: ClientModel) -> Result<ExtratoModel, ApiError> {
         let mut conn = self.get_pool().acquire().await?;
         let transactions = sqlx::query_as!(
             TransactionModel,

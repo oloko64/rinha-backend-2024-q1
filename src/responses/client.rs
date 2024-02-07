@@ -1,6 +1,6 @@
 use crate::models::ClientModel;
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug)]
 pub struct ClientResponse {
     #[serde(rename = "limite")]
     balance_limit: i64,

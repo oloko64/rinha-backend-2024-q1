@@ -2,9 +2,11 @@ use chrono::{DateTime, SecondsFormat, Utc};
 
 use crate::models::ExtratoModel;
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug)]
 pub struct ExtratoResponse {
     saldo: SaldoResponse,
+
+    #[serde(rename = "ultimas_transacoes")]
     transacoes: Vec<TransactionResponse>,
 }
 
@@ -38,14 +40,14 @@ impl From<ExtratoModel> for ExtratoResponse {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug)]
 pub struct SaldoResponse {
     total: i64,
     limite: i64,
     data_extrato: String,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug)]
 pub struct TransactionResponse {
     valor: i64,
     tipo: String,

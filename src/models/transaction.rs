@@ -1,15 +1,3 @@
-#[derive(serde::Deserialize, serde::Serialize)]
-pub struct TransactionRequest {
-    #[serde(rename = "valor")]
-    pub amount: u64,
-
-    #[serde(rename = "descricao")]
-    pub description: String,
-
-    #[serde(rename = "tipo")]
-    pub transaction_type: TransactionType,
-}
-
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Debug)]
 pub enum TransactionType {
     #[serde(rename = "d")]
