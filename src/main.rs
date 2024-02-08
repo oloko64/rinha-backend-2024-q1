@@ -30,14 +30,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer().with_target(false))
         .init();
 
-    info!("Starting server...");
-
     let pool = PgPoolOptions::new()
         .max_connections(30)
         .connect_with(PgConnectOptions::from_str(&env::var("DATABASE_URL")?)?)
         .await?;
-
-    info!("Connected to database");
 
     // sqlx::migrate!()
     //     .run(&pool)

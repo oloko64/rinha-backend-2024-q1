@@ -7,17 +7,17 @@ services:
       dockerfile: ./Dockerfile
     hostname: api1
     environment:
-      PORT: 80
+      PORT: 3000
       DATABASE_URL: postgres://rinha:rinha@db:5432/rinha
     depends_on:
       - db
     expose:
-      - "80"
+      - "3000"
     deploy:
       resources:
         limits:
           cpus: "0.25"
-          memory: "0.5GB"
+          memory: "190MB"
 
   api2:
     build:
@@ -25,17 +25,17 @@ services:
       dockerfile: ./Dockerfile
     hostname: api2
     environment:
-      PORT: 80
+      PORT: 3000
       DATABASE_URL: postgres://rinha:rinha@db:5432/rinha
     depends_on:
       - db
     expose:
-      - "80"
+      - "3000"
     deploy:
       resources:
         limits:
           cpus: "0.25"
-          memory: "0.5GB"
+          memory: "190MB"
 
   nginx:
     image: nginx:latest
@@ -49,8 +49,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: "0.5GB"
+          cpus: "0.50"
+          memory: "30MB"
 
   db:
     image: postgres:16
@@ -66,5 +66,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.75"
-          memory: "1.5GB"
+          cpus: "0.50"
+          memory: "140MB"

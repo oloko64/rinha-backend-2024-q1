@@ -9,10 +9,12 @@ WORKDIR /app
 
 RUN cargo build --release
 
-FROM gcr.io/distroless/cc-debian12 as final
+FROM ubuntu:23.10 as final
 
 COPY --from=builder /app/target/release/rinha-backend-2024 /app/rinha-backend-2024
 
-CMD ["/app/rinha-backend-2024"]
+WORKDIR /app
 
-EXPOSE 80
+CMD ["./rinha-backend-2024"]
+
+EXPOSE 3000
