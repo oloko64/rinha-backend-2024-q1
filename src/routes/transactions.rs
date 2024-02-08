@@ -25,9 +25,7 @@ pub async fn get_transactions(
         return Ok((StatusCode::OK, Json(extrato_response)).into_response());
     }
 
-    Err(ApiError::not_found(format!(
-        "Client with id {id} not found"
-    )))
+    Err(ApiError::not_found())
 }
 
 pub async fn make_transaction(
@@ -37,7 +35,7 @@ pub async fn make_transaction(
 ) -> Result<impl IntoResponse, ApiError> {
     let transaction_desc_size = transaction_req.description.chars().count();
     if !(1..=10).contains(&transaction_desc_size) {
-        return Err(ApiError::unprocessable_entity("Invalid description size"));
+        return Err(ApiError::unprocessable_entity());
     }
 
     let client = state.db.get_client(id).await?;
@@ -53,7 +51,7 @@ pub async fn make_transaction(
             }
         }
         if balance < -client.balance_limit {
-            return Err(ApiError::unprocessable_entity("Balance limit exceeded"));
+            return Err(ApiError::unprocessable_entity());
         }
 
         let client = state
@@ -71,10 +69,8 @@ pub async fn make_transaction(
             let client_response: ClientResponse = client.into();
             return Ok((StatusCode::OK, Json(client_response)).into_response());
         }
-        return Err(ApiError::internal_server_error("Failed to update client"));
+        return Err(ApiError::internal_server_error());
     }
 
-    Err(ApiError::not_found(format!(
-        "Client with id {id} not found"
-    )))
+    Err(ApiError::not_found())
 }

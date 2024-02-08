@@ -1,31 +1,30 @@
 use std::num::TryFromIntError;
 
 use axum::{http::StatusCode, response::IntoResponse};
-use tracing::error;
 
 #[derive(Debug)]
 pub enum ApiError {
-    NotFound(Option<String>),
-    InternalServerError(Option<String>),
-    UnprocessableEntity(Option<String>),
-    BadRequest(Option<String>),
+    NotFound,
+    InternalServerError,
+    UnprocessableEntity,
+    BadRequest,
 }
 
 impl ApiError {
-    pub fn not_found(msg: impl Into<String>) -> Self {
-        ApiError::NotFound(Some(msg.into()))
+    pub fn not_found() -> Self {
+        ApiError::NotFound
     }
 
-    pub fn internal_server_error(msg: impl Into<String>) -> Self {
-        ApiError::InternalServerError(Some(msg.into()))
+    pub fn internal_server_error() -> Self {
+        ApiError::InternalServerError
     }
 
-    pub fn bad_request(msg: impl Into<String>) -> Self {
-        ApiError::BadRequest(Some(msg.into()))
+    pub fn bad_request() -> Self {
+        ApiError::BadRequest
     }
 
-    pub fn unprocessable_entity(msg: impl Into<String>) -> Self {
-        ApiError::UnprocessableEntity(Some(msg.into()))
+    pub fn unprocessable_entity() -> Self {
+        ApiError::UnprocessableEntity
     }
 }
 
@@ -34,17 +33,17 @@ impl std::error::Error for ApiError {}
 impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ApiError::NotFound(msg) => {
-                write!(f, "NOT_FOUND: {}", msg.as_deref().unwrap_or(""))
+            ApiError::NotFound => {
+                write!(f, "NOT_FOUND")
             }
-            ApiError::InternalServerError(msg) => {
-                write!(f, "INTERNAL_SERVER_ERROR: {}", msg.as_deref().unwrap_or(""))
+            ApiError::InternalServerError => {
+                write!(f, "INTERNAL_SERVER_ERROR")
             }
-            ApiError::BadRequest(msg) => {
-                write!(f, "BAD_REQUEST: {}", msg.as_deref().unwrap_or(""))
+            ApiError::BadRequest => {
+                write!(f, "BAD_REQUEST")
             }
-            ApiError::UnprocessableEntity(msg) => {
-                write!(f, "UNPROCESSABLE_ENTITY: {}", msg.as_deref().unwrap_or(""))
+            ApiError::UnprocessableEntity => {
+                write!(f, "UNPROCESSABLE_ENTITY")
             }
         }
     }
@@ -53,38 +52,22 @@ impl std::fmt::Display for ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         match self {
-            ApiError::NotFound(msg) => {
-                let msg = msg.unwrap_or_default();
-                error!("NOT_FOUND: {}", msg);
-                (StatusCode::NOT_FOUND, msg).into_response()
-            }
-            ApiError::InternalServerError(msg) => {
-                let msg = msg.unwrap_or_default();
-                error!("INTERNAL_SERVER_ERROR: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
-            }
-            ApiError::BadRequest(msg) => {
-                let msg = msg.unwrap_or_default();
-                error!("BAD_REQUEST: {}", msg);
-                (StatusCode::BAD_REQUEST, msg).into_response()
-            }
-            ApiError::UnprocessableEntity(msg) => {
-                let msg = msg.unwrap_or_default();
-                error!("UNPROCESSABLE_ENTITY: {}", msg);
-                (StatusCode::UNPROCESSABLE_ENTITY, msg).into_response()
-            }
+            ApiError::NotFound => (StatusCode::NOT_FOUND).into_response(),
+            ApiError::InternalServerError => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+            ApiError::BadRequest => (StatusCode::BAD_REQUEST).into_response(),
+            ApiError::UnprocessableEntity => (StatusCode::UNPROCESSABLE_ENTITY).into_response(),
         }
     }
 }
 
 impl From<TryFromIntError> for ApiError {
     fn from(_: TryFromIntError) -> Self {
-        ApiError::InternalServerError(Some("Conversion overflow".to_string()))
+        ApiError::internal_server_error()
     }
 }
 
 impl From<sqlx::Error> for ApiError {
     fn from(_: sqlx::Error) -> Self {
-        ApiError::InternalServerError(None)
+        ApiError::internal_server_error()
     }
 }
