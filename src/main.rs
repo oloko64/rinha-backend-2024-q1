@@ -14,7 +14,7 @@ use axum::{
 use database::{AppState, Database};
 use routes::{get_transactions, make_transaction};
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use std::{env, str::FromStr, sync::Arc};
+use std::{env, net::SocketAddr, str::FromStr, sync::Arc};
 use tower::ServiceBuilder;
 use tower_http::{catch_panic::CatchPanicLayer, trace::TraceLayer};
 use tracing::info;
@@ -30,13 +30,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer().with_target(false))
         .init();
 
+    info!("Starting server...");
+
     let pool = PgPoolOptions::new()
-        .max_connections(100)
+        .max_connections(30)
         .connect_with(PgConnectOptions::from_str(&env::var("DATABASE_URL")?)?)
         .await?;
 
+    info!("Connected to database");
+
     // sqlx::migrate!()
-    //     .run(&conn)
+    //     .run(&pool)
     //     .await
     //     .expect("Failed to run migrations");
 
@@ -54,11 +58,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/clientes/:id/transacoes", post(make_transaction))
         .route("/clientes/:id/extrato", get(get_transactions))
         .layer(middlewares)
-        .with_state(Arc::clone(&state));
+        .with_state(state);
 
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    info!("Listening on {}", listener.local_addr()?);
+    let port = env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse::<u16>().ok())
+        .unwrap_or(3000);
+    info!("Listening on port {}", port);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 
     Ok(())
