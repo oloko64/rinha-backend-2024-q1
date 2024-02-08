@@ -8,10 +8,11 @@ edition = "2021"
 [profile.release]
 lto = true
 strip = true
+codegen-units = 1
 
 [dependencies]
 sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "chrono"] }
-tokio = { version = "1.36.0", features = ["full"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 axum = "0.7.4"
 chrono = { version = "0.4.33", features = ["serde"] }
 dotenvy = "0.15.7"

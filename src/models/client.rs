@@ -1,3 +1,5 @@
+use sqlx::{Acquire, PgConnection};
+
 use crate::{database::Database, errors::ApiError};
 
 use super::{TransactionModel, TransactionType};
@@ -39,7 +41,11 @@ pub struct SaldoModel {
 }
 
 pub trait ClientRepository {
-    async fn get_client(&self, id: i64) -> Result<Option<ClientModel>, ApiError>;
+    async fn get_client(
+        &self,
+        id: i64,
+        conn: &mut PgConnection,
+    ) -> Result<Option<ClientModel>, ApiError>;
     async fn update_client_balance(
         &self,
         id: i64,
@@ -47,17 +53,21 @@ pub trait ClientRepository {
         transaction_amount: u64,
         description: String,
         transaction_type: TransactionType,
-    ) -> Result<Option<ClientModel>, ApiError>;
-    async fn get_extrato(&self, client: ClientModel) -> Result<ExtratoModel, ApiError>;
+        conn: &mut PgConnection,
+    ) -> Result<ClientModel, ApiError>;
+    async fn get_extrato(&self, id: i64, conn: &mut PgConnection)
+        -> Result<ExtratoModel, ApiError>;
 }
 
 impl ClientRepository for Database {
-    async fn get_client(&self, id: i64) -> Result<Option<ClientModel>, ApiError> {
-        let mut conn = self.get_pool().acquire().await?;
-
+    async fn get_client(
+        &self,
+        id: i64,
+        conn: &mut PgConnection,
+    ) -> Result<Option<ClientModel>, ApiError> {
         Ok(
             sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)
-                .fetch_optional(&mut *conn)
+                .fetch_optional(conn)
                 .await?,
         )
     }
@@ -69,9 +79,9 @@ impl ClientRepository for Database {
         transaction_amount: u64,
         description: String,
         transaction_type: TransactionType,
-    ) -> Result<Option<ClientModel>, ApiError> {
-        let mut transaction = self.get_pool().begin().await?;
-
+        conn: &mut PgConnection,
+    ) -> Result<ClientModel, ApiError> {
+        let mut transaction = conn.begin().await?;
         sqlx::query!("UPDATE clients SET balance = $1 WHERE id = $2", balance, id)
             .execute(&mut *transaction)
             .await?;
@@ -79,34 +89,46 @@ impl ClientRepository for Database {
         let transaction_type: &str = transaction_type.into();
         let transaction_amount: i64 = transaction_amount.try_into()?;
         sqlx::query!(
-            "INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)",
-            id,
-            transaction_amount,
-            description,
-            transaction_type
-        )
-        .execute(&mut *transaction)
-        .await?;
+                "INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)",
+                id,
+                transaction_amount,
+                description,
+                transaction_type
+            )
+            .execute(&mut *transaction)
+            .await?;
+
+        let client = self
+            .get_client(id, &mut transaction)
+            .await?
+            .ok_or(ApiError::not_found())?;
 
         transaction.commit().await?;
-
-        let client = self.get_client(id).await?;
 
         Ok(client)
     }
 
-    async fn get_extrato(&self, client: ClientModel) -> Result<ExtratoModel, ApiError> {
-        let mut conn = self.get_pool().acquire().await?;
-        let transactions = sqlx::query_as!(
-            TransactionModel,
-            "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
-            client.id
-        )
-        .fetch_all(&mut *conn)
-        .await?;
+    async fn get_extrato(
+        &self,
+        id: i64,
+        conn: &mut PgConnection,
+    ) -> Result<ExtratoModel, ApiError> {
+        let client = self.get_client(id, conn).await?;
 
-        let res: ExtratoModel = (client, transactions).into();
+        if let Some(client) = client {
+            let transactions = sqlx::query_as!(
+                TransactionModel,
+                "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
+                client.id
+            )
+            .fetch_all(conn)
+            .await?;
 
-        Ok(res)
+            let res: ExtratoModel = (client, transactions).into();
+
+            return Ok(res);
+        }
+
+        Err(ApiError::not_found())
     }
 }

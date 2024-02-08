@@ -7,7 +7,6 @@ pub enum ApiError {
     NotFound,
     InternalServerError,
     UnprocessableEntity,
-    BadRequest,
 }
 
 impl ApiError {
@@ -17,10 +16,6 @@ impl ApiError {
 
     pub fn internal_server_error() -> Self {
         ApiError::InternalServerError
-    }
-
-    pub fn bad_request() -> Self {
-        ApiError::BadRequest
     }
 
     pub fn unprocessable_entity() -> Self {
@@ -39,9 +34,6 @@ impl std::fmt::Display for ApiError {
             ApiError::InternalServerError => {
                 write!(f, "INTERNAL_SERVER_ERROR")
             }
-            ApiError::BadRequest => {
-                write!(f, "BAD_REQUEST")
-            }
             ApiError::UnprocessableEntity => {
                 write!(f, "UNPROCESSABLE_ENTITY")
             }
@@ -54,7 +46,6 @@ impl IntoResponse for ApiError {
         match self {
             ApiError::NotFound => (StatusCode::NOT_FOUND).into_response(),
             ApiError::InternalServerError => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
-            ApiError::BadRequest => (StatusCode::BAD_REQUEST).into_response(),
             ApiError::UnprocessableEntity => (StatusCode::UNPROCESSABLE_ENTITY).into_response(),
         }
     }

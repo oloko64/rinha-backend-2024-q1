@@ -17,15 +17,11 @@ pub async fn get_transactions(
     Path(id): Path<i64>,
     State(state): State<DbPool>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let client = state.db.get_client(id).await?;
+    let conn = &mut *state.db.get_pool().acquire().await?;
+    let extrato = state.db.get_extrato(id, conn).await?;
+    let extrato_response: ExtratoResponse = extrato.into();
 
-    if let Some(client) = client {
-        let extrato = state.db.get_extrato(client).await?;
-        let extrato_response: ExtratoResponse = extrato.into();
-        return Ok((StatusCode::OK, Json(extrato_response)).into_response());
-    }
-
-    Err(ApiError::not_found())
+    Ok((StatusCode::OK, Json(extrato_response)).into_response())
 }
 
 pub async fn make_transaction(
@@ -33,44 +29,61 @@ pub async fn make_transaction(
     State(state): State<DbPool>,
     Json(transaction_req): Json<TransactionRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let transaction_desc_size = transaction_req.description.chars().count();
-    if !(1..=10).contains(&transaction_desc_size) {
-        return Err(ApiError::unprocessable_entity());
+    validate_transaction_desc_size(&transaction_req.description)?;
+
+    let conn = &mut *state.db.get_pool().acquire().await?;
+    let client = state
+        .db
+        .get_client(id, conn)
+        .await?
+        .ok_or(ApiError::not_found())?;
+
+    let new_balance = validate_transaction_balance(
+        client.balance,
+        transaction_req.amount,
+        client.balance_limit,
+        &transaction_req.transaction_type,
+    )?;
+
+    let client = state
+        .db
+        .update_client_balance(
+            id,
+            new_balance,
+            transaction_req.amount,
+            transaction_req.description,
+            transaction_req.transaction_type,
+            conn,
+        )
+        .await?;
+
+    let client_response: ClientResponse = client.into();
+    Ok((StatusCode::OK, Json(client_response)).into_response())
+}
+
+#[inline]
+fn validate_transaction_desc_size(desc: &str) -> Result<bool, ApiError> {
+    if (1..=10).contains(&desc.chars().count()) {
+        return Ok(true);
     }
+    Err(ApiError::unprocessable_entity())
+}
 
-    let client = state.db.get_client(id).await?;
-
-    if let Some(client) = client {
-        let mut balance = client.balance;
-        match transaction_req.transaction_type {
-            TransactionType::Debit => {
-                balance -= TryInto::<i64>::try_into(transaction_req.amount)?;
+#[inline]
+fn validate_transaction_balance(
+    balance: i64,
+    amount: u64,
+    balance_limit: i64,
+    transaction_type: &TransactionType,
+) -> Result<i64, ApiError> {
+    match transaction_type {
+        TransactionType::Debit => {
+            let new_balance = balance - TryInto::<i64>::try_into(amount)?;
+            if new_balance < -balance_limit {
+                return Err(ApiError::unprocessable_entity());
             }
-            TransactionType::Credit => {
-                balance += TryInto::<i64>::try_into(transaction_req.amount)?;
-            }
+            Ok(new_balance)
         }
-        if balance < -client.balance_limit {
-            return Err(ApiError::unprocessable_entity());
-        }
-
-        let client = state
-            .db
-            .update_client_balance(
-                id,
-                balance,
-                transaction_req.amount,
-                transaction_req.description,
-                transaction_req.transaction_type,
-            )
-            .await?;
-
-        if let Some(client) = client {
-            let client_response: ClientResponse = client.into();
-            return Ok((StatusCode::OK, Json(client_response)).into_response());
-        }
-        return Err(ApiError::internal_server_error());
+        TransactionType::Credit => Ok(balance + TryInto::<i64>::try_into(amount)?),
     }
-
-    Err(ApiError::not_found())
 }
