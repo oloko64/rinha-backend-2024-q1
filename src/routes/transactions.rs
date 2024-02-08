@@ -37,7 +37,7 @@ pub async fn make_transaction(
 ) -> Result<impl IntoResponse, ApiError> {
     let transaction_desc_size = transaction_req.description.chars().count();
     if !(1..=10).contains(&transaction_desc_size) {
-        return Err(ApiError::bad_request("Invalid description size"));
+        return Err(ApiError::unprocessable_entity("Invalid description size"));
     }
 
     let client = state.db.get_client(id).await?;
@@ -53,7 +53,7 @@ pub async fn make_transaction(
             }
         }
         if balance < -client.balance_limit {
-            return Err(ApiError::bad_request("Balance limit exceeded"));
+            return Err(ApiError::unprocessable_entity("Balance limit exceeded"));
         }
 
         let client = state

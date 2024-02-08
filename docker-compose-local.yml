@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  api1:
+  api1: &app1
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -20,22 +20,8 @@ services:
           memory: "190MB"
 
   api2:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+    <<: *app1
     hostname: api2
-    environment:
-      PORT: 3000
-      DATABASE_URL: postgres://rinha:rinha@db:5432/rinha
-    depends_on:
-      - db
-    expose:
-      - "3000"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: "190MB"
 
   nginx:
     image: nginx:latest

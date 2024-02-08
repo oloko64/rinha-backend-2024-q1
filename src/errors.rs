@@ -7,6 +7,7 @@ use tracing::error;
 pub enum ApiError {
     NotFound(Option<String>),
     InternalServerError(Option<String>),
+    UnprocessableEntity(Option<String>),
     BadRequest(Option<String>),
 }
 
@@ -21,6 +22,10 @@ impl ApiError {
 
     pub fn bad_request(msg: impl Into<String>) -> Self {
         ApiError::BadRequest(Some(msg.into()))
+    }
+
+    pub fn unprocessable_entity(msg: impl Into<String>) -> Self {
+        ApiError::UnprocessableEntity(Some(msg.into()))
     }
 }
 
@@ -37,6 +42,9 @@ impl std::fmt::Display for ApiError {
             }
             ApiError::BadRequest(msg) => {
                 write!(f, "BAD_REQUEST: {}", msg.as_deref().unwrap_or(""))
+            }
+            ApiError::UnprocessableEntity(msg) => {
+                write!(f, "UNPROCESSABLE_ENTITY: {}", msg.as_deref().unwrap_or(""))
             }
         }
     }
@@ -59,6 +67,11 @@ impl IntoResponse for ApiError {
                 let msg = msg.unwrap_or_default();
                 error!("BAD_REQUEST: {}", msg);
                 (StatusCode::BAD_REQUEST, msg).into_response()
+            }
+            ApiError::UnprocessableEntity(msg) => {
+                let msg = msg.unwrap_or_default();
+                error!("UNPROCESSABLE_ENTITY: {}", msg);
+                (StatusCode::UNPROCESSABLE_ENTITY, msg).into_response()
             }
         }
     }
