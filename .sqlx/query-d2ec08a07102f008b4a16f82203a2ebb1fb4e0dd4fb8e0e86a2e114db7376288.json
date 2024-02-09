@@ -6,17 +6,17 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int8"
+        "type_info": "Int4"
       },
       {
         "ordinal": 1,
         "name": "balance_limit",
-        "type_info": "Int8"
+        "type_info": "Int4"
       },
       {
         "ordinal": 2,
         "name": "balance",
-        "type_info": "Int8"
+        "type_info": "Int4"
       },
       {
         "ordinal": 3,
@@ -26,7 +26,7 @@
     ],
     "parameters": {
       "Left": [
-        "Int8"
+        "Int4"
       ]
     },
     "nullable": [

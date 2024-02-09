@@ -3,10 +3,10 @@ use crate::models::ClientModel;
 #[derive(serde::Serialize, Debug)]
 pub struct ClientResponse {
     #[serde(rename = "limite")]
-    balance_limit: i64,
+    balance_limit: i32,
 
     #[serde(rename = "saldo")]
-    balance: i64,
+    balance: i32,
 }
 
 impl From<ClientModel> for ClientResponse {

@@ -42,14 +42,14 @@ impl From<ExtratoModel> for ExtratoResponse {
 
 #[derive(serde::Serialize, Debug)]
 pub struct SaldoResponse {
-    total: i64,
-    limite: i64,
+    total: i32,
+    limite: i32,
     data_extrato: String,
 }
 
 #[derive(serde::Serialize, Debug)]
 pub struct TransactionResponse {
-    valor: i64,
+    valor: i32,
     tipo: String,
     descricao: String,
     realizada_em: String,

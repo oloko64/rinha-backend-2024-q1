@@ -1,18 +1,18 @@
 -- Add migration script here
 
 CREATE TABLE clients (
-  id BIGSERIAL PRIMARY KEY,
-  balance_limit BIGINT DEFAULT 0 NOT NULL,
-  balance BIGINT DEFAULT 0 NOT NULL,
+  id SERIAL PRIMARY KEY,
+  balance_limit INT DEFAULT 0 NOT NULL,
+  balance INT DEFAULT 0 NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE TABLE transactions (
-  id BIGSERIAL PRIMARY KEY,
-  client_id BIGSERIAL REFERENCES clients(id) NOT NULL,
-  amount BIGINT NOT NULL,
-  description TEXT NOT NULL,
-  type TEXT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  client_id SERIAL REFERENCES clients(id) NOT NULL,
+  amount INT NOT NULL,
+  description VARCHAR(10) NOT NULL,
+  type VARCHAR(1) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

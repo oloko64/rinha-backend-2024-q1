@@ -18,9 +18,9 @@ impl From<TransactionType> for &'static str {
 
 #[derive(Debug)]
 pub struct TransactionModel {
-    pub id: i64,
-    pub client_id: i64,
-    pub amount: i64,
+    pub id: i32,
+    pub client_id: i32,
+    pub amount: i32,
     pub description: String,
     pub r#type: String,
     pub created_at: sqlx::types::chrono::NaiveDateTime,

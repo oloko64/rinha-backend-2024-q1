@@ -21,9 +21,14 @@ type DbPool = Arc<AppState>;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
+    let max_connections = env::var("MAX_CONNECTIONS")
+        .ok()
+        .and_then(|m| m.parse::<u32>().ok())
+        .unwrap_or(15);
+    println!("Max database connections: {max_connections}");
 
     let pool = PgPoolOptions::new()
-        .max_connections(30)
+        .max_connections(max_connections)
         .connect_with(PgConnectOptions::from_str(&env::var("DATABASE_URL")?)?)
         .await?;
 

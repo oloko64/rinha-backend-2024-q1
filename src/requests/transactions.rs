@@ -3,7 +3,7 @@ use crate::models::TransactionType;
 #[derive(serde::Deserialize)]
 pub struct TransactionRequest {
     #[serde(rename = "valor")]
-    pub amount: u64,
+    pub amount: u32,
 
     #[serde(rename = "descricao")]
     pub description: String,

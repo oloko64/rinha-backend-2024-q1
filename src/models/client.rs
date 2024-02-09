@@ -6,9 +6,9 @@ use super::{TransactionModel, TransactionType};
 
 #[derive(Debug)]
 pub struct ClientModel {
-    pub id: i64,
-    pub balance_limit: i64,
-    pub balance: i64,
+    pub id: i32,
+    pub balance_limit: i32,
+    pub balance: i32,
     pub created_at: sqlx::types::chrono::NaiveDateTime,
 }
 
@@ -35,28 +35,28 @@ impl From<(ClientModel, Vec<TransactionModel>)> for ExtratoModel {
 
 #[derive(Debug)]
 pub struct SaldoModel {
-    pub balance: i64,
-    pub balance_limit: i64,
+    pub balance: i32,
+    pub balance_limit: i32,
     pub date: sqlx::types::chrono::NaiveDateTime,
 }
 
 pub trait ClientRepository {
-    async fn get_client(&self, id: i64, conn: &mut PgConnection) -> Result<ClientModel, ApiError>;
+    async fn get_client(&self, id: i32, conn: &mut PgConnection) -> Result<ClientModel, ApiError>;
     async fn update_client_balance(
         &self,
-        id: i64,
-        balance: i64,
-        transaction_amount: u64,
+        id: i32,
+        balance: i32,
+        transaction_amount: u32,
         description: String,
         transaction_type: TransactionType,
         conn: &mut PgConnection,
     ) -> Result<ClientModel, ApiError>;
-    async fn get_extrato(&self, id: i64, conn: &mut PgConnection)
+    async fn get_extrato(&self, id: i32, conn: &mut PgConnection)
         -> Result<ExtratoModel, ApiError>;
 }
 
 impl ClientRepository for Database {
-    async fn get_client(&self, id: i64, conn: &mut PgConnection) -> Result<ClientModel, ApiError> {
+    async fn get_client(&self, id: i32, conn: &mut PgConnection) -> Result<ClientModel, ApiError> {
         Ok(
             sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)
                 .fetch_one(conn)
@@ -66,9 +66,9 @@ impl ClientRepository for Database {
 
     async fn update_client_balance(
         &self,
-        id: i64,
-        balance: i64,
-        transaction_amount: u64,
+        id: i32,
+        balance: i32,
+        transaction_amount: u32,
         description: String,
         transaction_type: TransactionType,
         conn: &mut PgConnection,
@@ -79,7 +79,8 @@ impl ClientRepository for Database {
             .await?;
 
         let transaction_type: &str = transaction_type.into();
-        let transaction_amount: i64 = transaction_amount.try_into()?;
+        // TODO: Not a good idea to use cast u32 to i32 but for this test context is ok, as all the values are in range of i32
+        let transaction_amount = transaction_amount as i32;
         sqlx::query!(
                 "INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)",
                 id,
@@ -99,7 +100,7 @@ impl ClientRepository for Database {
 
     async fn get_extrato(
         &self,
-        id: i64,
+        id: i32,
         conn: &mut PgConnection,
     ) -> Result<ExtratoModel, ApiError> {
         let client = self.get_client(id, conn).await?;

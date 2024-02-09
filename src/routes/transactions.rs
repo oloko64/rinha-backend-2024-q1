@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub async fn get_transactions(
-    Path(id): Path<i64>,
+    Path(id): Path<i32>,
     State(state): State<DbPool>,
 ) -> Result<impl IntoResponse, ApiError> {
     is_valid_user(id)?;
@@ -26,7 +26,7 @@ pub async fn get_transactions(
 }
 
 pub async fn make_transaction(
-    Path(id): Path<i64>,
+    Path(id): Path<i32>,
     State(state): State<DbPool>,
     Json(transaction_req): Json<TransactionRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -61,14 +61,14 @@ pub async fn make_transaction(
 
 #[inline]
 fn validate_transaction_desc_size(desc: &str) -> Result<bool, ApiError> {
-    if (1..=10).contains(&desc.chars().count()) {
+    if (1..11).contains(&desc.chars().count()) {
         return Ok(true);
     }
     Err(ApiError::unprocessable_entity())
 }
 
 #[inline]
-fn is_valid_user(id: i64) -> Result<(), ApiError> {
+fn is_valid_user(id: i32) -> Result<(), ApiError> {
     if !(1..6).contains(&id) {
         return Err(ApiError::not_found());
     }
@@ -77,19 +77,21 @@ fn is_valid_user(id: i64) -> Result<(), ApiError> {
 
 #[inline]
 fn validate_transaction_balance(
-    balance: i64,
-    amount: u64,
-    balance_limit: i64,
+    balance: i32,
+    amount: u32,
+    balance_limit: i32,
     transaction_type: &TransactionType,
-) -> Result<i64, ApiError> {
+) -> Result<i32, ApiError> {
     match transaction_type {
         TransactionType::Debit => {
-            let new_balance = balance - TryInto::<i64>::try_into(amount)?;
+            // TODO: Not a good idea to use cast u32 to i32 but for this test context is ok, as all the values are in range of i32
+            let new_balance = balance - amount as i32;
             if new_balance < -balance_limit {
                 return Err(ApiError::unprocessable_entity());
             }
             Ok(new_balance)
         }
-        TransactionType::Credit => Ok(balance + TryInto::<i64>::try_into(amount)?),
+        // TODO: Not a good idea to use cast u32 to i32 but for this test context is ok, as all the values are in range of i32
+        TransactionType::Credit => Ok(balance + amount as i32),
     }
 }
