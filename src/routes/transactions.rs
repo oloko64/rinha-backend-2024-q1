@@ -17,6 +17,7 @@ pub async fn get_transactions(
     Path(id): Path<i64>,
     State(state): State<DbPool>,
 ) -> Result<impl IntoResponse, ApiError> {
+    is_valid_user(id)?;
     let conn = &mut *state.db.get_pool().acquire().await?;
     let extrato = state.db.get_extrato(id, conn).await?;
     let extrato_response: ExtratoResponse = extrato.into();
@@ -29,14 +30,11 @@ pub async fn make_transaction(
     State(state): State<DbPool>,
     Json(transaction_req): Json<TransactionRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    is_valid_user(id)?;
     validate_transaction_desc_size(&transaction_req.description)?;
 
     let conn = &mut *state.db.get_pool().acquire().await?;
-    let client = state
-        .db
-        .get_client(id, conn)
-        .await?
-        .ok_or(ApiError::not_found())?;
+    let client = state.db.get_client(id, conn).await?;
 
     let new_balance = validate_transaction_balance(
         client.balance,
@@ -67,6 +65,14 @@ fn validate_transaction_desc_size(desc: &str) -> Result<bool, ApiError> {
         return Ok(true);
     }
     Err(ApiError::unprocessable_entity())
+}
+
+#[inline]
+fn is_valid_user(id: i64) -> Result<(), ApiError> {
+    if !(1..6).contains(&id) {
+        return Err(ApiError::not_found());
+    }
+    Ok(())
 }
 
 #[inline]

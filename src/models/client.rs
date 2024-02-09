@@ -41,11 +41,7 @@ pub struct SaldoModel {
 }
 
 pub trait ClientRepository {
-    async fn get_client(
-        &self,
-        id: i64,
-        conn: &mut PgConnection,
-    ) -> Result<Option<ClientModel>, ApiError>;
+    async fn get_client(&self, id: i64, conn: &mut PgConnection) -> Result<ClientModel, ApiError>;
     async fn update_client_balance(
         &self,
         id: i64,
@@ -60,14 +56,10 @@ pub trait ClientRepository {
 }
 
 impl ClientRepository for Database {
-    async fn get_client(
-        &self,
-        id: i64,
-        conn: &mut PgConnection,
-    ) -> Result<Option<ClientModel>, ApiError> {
+    async fn get_client(&self, id: i64, conn: &mut PgConnection) -> Result<ClientModel, ApiError> {
         Ok(
             sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)
-                .fetch_optional(conn)
+                .fetch_one(conn)
                 .await?,
         )
     }
@@ -98,10 +90,7 @@ impl ClientRepository for Database {
             .execute(&mut *transaction)
             .await?;
 
-        let client = self
-            .get_client(id, &mut transaction)
-            .await?
-            .ok_or(ApiError::not_found())?;
+        let client = self.get_client(id, &mut transaction).await?;
 
         transaction.commit().await?;
 
@@ -115,20 +104,16 @@ impl ClientRepository for Database {
     ) -> Result<ExtratoModel, ApiError> {
         let client = self.get_client(id, conn).await?;
 
-        if let Some(client) = client {
-            let transactions = sqlx::query_as!(
-                TransactionModel,
-                "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
-                client.id
-            )
-            .fetch_all(conn)
-            .await?;
+        let transactions = sqlx::query_as!(
+            TransactionModel,
+            "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
+            client.id
+        )
+        .fetch_all(conn)
+        .await?;
 
-            let res: ExtratoModel = (client, transactions).into();
+        let res: ExtratoModel = (client, transactions).into();
 
-            return Ok(res);
-        }
-
-        Err(ApiError::not_found())
+        Ok(res)
     }
 }
