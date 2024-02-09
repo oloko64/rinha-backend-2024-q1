@@ -9,6 +9,7 @@ services:
     environment:
       PORT: 3000
       DATABASE_URL: postgres://rinha:rinha@db:5432/rinha
+      MAX_CONNECTIONS: 15
     depends_on:
       - db
     expose:
@@ -17,7 +18,7 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: "190MB"
+          memory: "80MB"
 
   api2:
     <<: *app1
@@ -36,7 +37,7 @@ services:
       resources:
         limits:
           cpus: "0.50"
-          memory: "30MB"
+          memory: "110MB"
 
   db:
     image: postgres:16
@@ -53,4 +54,4 @@ services:
       resources:
         limits:
           cpus: "0.50"
-          memory: "140MB"
+          memory: "280MB"
