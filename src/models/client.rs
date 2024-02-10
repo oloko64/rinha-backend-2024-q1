@@ -42,7 +42,7 @@ pub struct SaldoModel {
 }
 
 pub trait Client {
-    async fn find_client(&mut self, id: i32) -> Result<ClientModel, ApiError>;
+    async fn find_client(&mut self, id: i32) -> Result<Option<ClientModel>, ApiError>;
     async fn update_balance(
         &mut self,
         id: i32,
@@ -51,7 +51,7 @@ pub trait Client {
         description: String,
         transaction_type: TransactionType,
     ) -> Result<ClientModel, ApiError>;
-    async fn find_extrato(&mut self, id: i32) -> Result<ExtratoModel, ApiError>;
+    async fn find_extrato(&mut self, id: i32) -> Result<Option<ExtratoModel>, ApiError>;
 }
 
 /// Handles all the operations related to the client
@@ -66,10 +66,10 @@ impl<'a> ClientRepository<'a> {
 }
 
 impl Client for ClientRepository<'_> {
-    async fn find_client(&mut self, id: i32) -> Result<ClientModel, ApiError> {
+    async fn find_client(&mut self, id: i32) -> Result<Option<ClientModel>, ApiError> {
         Ok(
             sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)
-                .fetch_one(&mut *self.conn)
+                .fetch_optional(&mut *self.conn)
                 .await?,
         )
     }
@@ -92,18 +92,23 @@ impl Client for ClientRepository<'_> {
         Ok(client)
     }
 
-    async fn find_extrato(&mut self, id: i32) -> Result<ExtratoModel, ApiError> {
+    async fn find_extrato(&mut self, id: i32) -> Result<Option<ExtratoModel>, ApiError> {
         let client = self.find_client(id).await?;
-        let transactions = sqlx::query_as!(
-            TransactionModel,
-            "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
-            client.id
-        )
-        .fetch_all(&mut *self.conn)
-        .await?;
 
-        let res: ExtratoModel = (client, transactions).into();
+        if let Some(client) = client {
+            let transactions = sqlx::query_as!(
+                TransactionModel,
+                "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
+                client.id
+            )
+            .fetch_all(&mut *self.conn)
+            .await?;
 
-        Ok(res)
+            let res: ExtratoModel = (client, transactions).into();
+
+            return Ok(Some(res));
+        }
+
+        Ok(None)
     }
 }

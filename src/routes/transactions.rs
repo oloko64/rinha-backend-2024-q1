@@ -17,10 +17,12 @@ pub async fn get_transactions(
     Path(id): Path<i32>,
     State(state): State<DbPool>,
 ) -> Result<impl IntoResponse, ApiError> {
-    is_valid_user(id)?;
     let conn = &mut *state.db.get_pool().acquire().await?;
     let mut client_repository = ClientRepository::new(conn);
-    let extrato = client_repository.find_extrato(id).await?;
+    let extrato = client_repository
+        .find_extrato(id)
+        .await?
+        .ok_or(ApiError::not_found())?;
     let extrato_response: ExtratoResponse = extrato.into();
 
     Ok((StatusCode::OK, Json(extrato_response)).into_response())
@@ -31,12 +33,14 @@ pub async fn make_transaction(
     State(state): State<DbPool>,
     Json(transaction_req): Json<TransactionRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    is_valid_user(id)?;
     validate_transaction_desc_size(&transaction_req.description)?;
 
     let conn = &mut *state.db.get_pool().acquire().await?;
     let mut client_repository = ClientRepository::new(conn);
-    let client = client_repository.find_client(id).await?;
+    let client = client_repository
+        .find_client(id)
+        .await?
+        .ok_or(ApiError::not_found())?;
 
     let new_balance = validate_transaction_balance(
         client.balance,
@@ -65,14 +69,6 @@ fn validate_transaction_desc_size(desc: &str) -> Result<bool, ApiError> {
         return Ok(true);
     }
     Err(ApiError::unprocessable_entity())
-}
-
-#[inline]
-fn is_valid_user(id: i32) -> Result<(), ApiError> {
-    if !(1..6).contains(&id) {
-        return Err(ApiError::not_found());
-    }
-    Ok(())
 }
 
 #[inline]
