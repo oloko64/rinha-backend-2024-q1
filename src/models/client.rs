@@ -1,8 +1,9 @@
-use sqlx::{Acquire, PgConnection};
+use sqlx::PgConnection;
 
-use crate::{database::Database, errors::ApiError};
-
-use super::{TransactionModel, TransactionType};
+use crate::{
+    errors::ApiError,
+    models::{TransactionModel, TransactionType},
+};
 
 #[derive(Debug)]
 pub struct ClientModel {
@@ -40,77 +41,65 @@ pub struct SaldoModel {
     pub date: sqlx::types::chrono::NaiveDateTime,
 }
 
-pub trait ClientRepository {
-    async fn get_client(&self, id: i32, conn: &mut PgConnection) -> Result<ClientModel, ApiError>;
-    async fn update_client_balance(
-        &self,
+pub trait Client {
+    async fn find_client(&mut self, id: i32) -> Result<ClientModel, ApiError>;
+    async fn update_balance(
+        &mut self,
         id: i32,
         balance: i32,
         transaction_amount: u32,
         description: String,
         transaction_type: TransactionType,
-        conn: &mut PgConnection,
     ) -> Result<ClientModel, ApiError>;
-    async fn get_extrato(&self, id: i32, conn: &mut PgConnection)
-        -> Result<ExtratoModel, ApiError>;
+    async fn find_extrato(&mut self, id: i32) -> Result<ExtratoModel, ApiError>;
 }
 
-impl ClientRepository for Database {
-    async fn get_client(&self, id: i32, conn: &mut PgConnection) -> Result<ClientModel, ApiError> {
+/// Handles all the operations related to the client
+pub struct ClientRepository<'a> {
+    conn: &'a mut PgConnection,
+}
+
+impl<'a> ClientRepository<'a> {
+    pub fn new(conn: &'a mut PgConnection) -> Self {
+        Self { conn }
+    }
+}
+
+impl Client for ClientRepository<'_> {
+    async fn find_client(&mut self, id: i32) -> Result<ClientModel, ApiError> {
         Ok(
             sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)
-                .fetch_one(conn)
+                .fetch_one(&mut *self.conn)
                 .await?,
         )
     }
 
-    async fn update_client_balance(
-        &self,
+    async fn update_balance(
+        &mut self,
         id: i32,
         balance: i32,
         transaction_amount: u32,
         description: String,
         transaction_type: TransactionType,
-        conn: &mut PgConnection,
     ) -> Result<ClientModel, ApiError> {
-        let mut transaction = conn.begin().await?;
-        sqlx::query!("UPDATE clients SET balance = $1 WHERE id = $2", balance, id)
-            .execute(&mut *transaction)
-            .await?;
-
         let transaction_type: &str = transaction_type.into();
         // TODO: Not a good idea to use cast u32 to i32 but for this test context is ok, as all the values are in range of i32
         let transaction_amount = transaction_amount as i32;
-        sqlx::query!(
-                "INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)",
-                id,
-                transaction_amount,
-                description,
-                transaction_type
-            )
-            .execute(&mut *transaction)
+        let client = sqlx::query_as!(ClientModel, "WITH updated_transaction AS (INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)) UPDATE clients SET balance = $5 WHERE id = $1 RETURNING *", id, transaction_amount, description, transaction_type, balance)
+            .fetch_one(&mut *self.conn)
             .await?;
-
-        let client = self.get_client(id, &mut transaction).await?;
-
-        transaction.commit().await?;
 
         Ok(client)
     }
 
-    async fn get_extrato(
-        &self,
-        id: i32,
-        conn: &mut PgConnection,
-    ) -> Result<ExtratoModel, ApiError> {
-        let client = self.get_client(id, conn).await?;
-
+    async fn find_extrato(&mut self, id: i32) -> Result<ExtratoModel, ApiError> {
+        let client = self.find_client(id).await?;
         let transactions = sqlx::query_as!(
             TransactionModel,
             "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
             client.id
         )
-        .fetch_all(conn)
+        .fetch_all(&mut *self.conn)
         .await?;
 
         let res: ExtratoModel = (client, transactions).into();

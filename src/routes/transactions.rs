@@ -7,7 +7,7 @@ use axum::{
 
 use crate::{
     errors::ApiError,
-    models::{ClientRepository, TransactionType},
+    models::{Client, ClientRepository, TransactionType},
     requests::TransactionRequest,
     responses::{ClientResponse, ExtratoResponse},
     DbPool,
@@ -19,7 +19,8 @@ pub async fn get_transactions(
 ) -> Result<impl IntoResponse, ApiError> {
     is_valid_user(id)?;
     let conn = &mut *state.db.get_pool().acquire().await?;
-    let extrato = state.db.get_extrato(id, conn).await?;
+    let mut client_repository = ClientRepository::new(conn);
+    let extrato = client_repository.find_extrato(id).await?;
     let extrato_response: ExtratoResponse = extrato.into();
 
     Ok((StatusCode::OK, Json(extrato_response)).into_response())
@@ -34,7 +35,8 @@ pub async fn make_transaction(
     validate_transaction_desc_size(&transaction_req.description)?;
 
     let conn = &mut *state.db.get_pool().acquire().await?;
-    let client = state.db.get_client(id, conn).await?;
+    let mut client_repository = ClientRepository::new(conn);
+    let client = client_repository.find_client(id).await?;
 
     let new_balance = validate_transaction_balance(
         client.balance,
@@ -43,15 +45,13 @@ pub async fn make_transaction(
         &transaction_req.transaction_type,
     )?;
 
-    let client = state
-        .db
-        .update_client_balance(
+    let client = client_repository
+        .update_balance(
             id,
             new_balance,
             transaction_req.amount,
             transaction_req.description,
             transaction_req.transaction_type,
-            conn,
         )
         .await?;
 

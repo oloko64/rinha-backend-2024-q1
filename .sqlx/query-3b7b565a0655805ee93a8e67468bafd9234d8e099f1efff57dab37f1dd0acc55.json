@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH updated_transaction AS (INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)) UPDATE clients SET balance = $5 WHERE id = $1 RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "balance_limit",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "balance",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3b7b565a0655805ee93a8e67468bafd9234d8e099f1efff57dab37f1dd0acc55"
+}
