@@ -17,7 +17,7 @@ pub async fn get_transactions(
     Path(id): Path<i32>,
     State(state): State<DbPool>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let conn = &mut *state.db.get_pool().acquire().await?;
+    let conn = state.db.get_pool();
     let mut client_repository = ClientRepository::new(conn);
     let extrato = client_repository
         .find_extrato(id)
@@ -35,7 +35,7 @@ pub async fn make_transaction(
 ) -> Result<impl IntoResponse, ApiError> {
     validate_transaction_desc_size(&transaction_req.description)?;
 
-    let conn = &mut *state.db.get_pool().acquire().await?;
+    let conn = state.db.get_pool();
     let mut client_repository = ClientRepository::new(conn);
     let client = client_repository
         .find_client(id)

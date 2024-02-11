@@ -13,8 +13,8 @@ use axum::{
 };
 use database::{AppState, Database};
 use routes::{get_transactions, make_transaction};
-use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use std::{env, net::SocketAddr, str::FromStr, sync::Arc};
+use sqlx::postgres::PgPoolOptions;
+use std::{env, net::SocketAddr, sync::Arc};
 
 type DbPool = Arc<AppState>;
 
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let pool = PgPoolOptions::new()
         .max_connections(max_connections)
-        .connect_with(PgConnectOptions::from_str(&env::var("DATABASE_URL")?)?)
+        .connect(&env::var("DATABASE_URL")?)
         .await?;
 
     // sqlx::migrate!()

@@ -1,4 +1,4 @@
-use sqlx::PgConnection;
+use sqlx::PgPool;
 
 use crate::{
     errors::ApiError,
@@ -56,11 +56,11 @@ pub trait Client {
 
 /// Handles all the operations related to the client
 pub struct ClientRepository<'a> {
-    conn: &'a mut PgConnection,
+    conn: &'a PgPool,
 }
 
 impl<'a> ClientRepository<'a> {
-    pub fn new(conn: &'a mut PgConnection) -> Self {
+    pub fn new(conn: &'a PgPool) -> Self {
         Self { conn }
     }
 }
@@ -69,7 +69,7 @@ impl Client for ClientRepository<'_> {
     async fn find_client(&mut self, id: i32) -> Result<Option<ClientModel>, ApiError> {
         Ok(
             sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)
-                .fetch_optional(&mut *self.conn)
+                .fetch_optional(self.conn)
                 .await?,
         )
     }
@@ -86,7 +86,7 @@ impl Client for ClientRepository<'_> {
         // TODO: Not a good idea to use cast u32 to i32 but for this test context is ok, as all the values are in range of i32
         let transaction_amount = transaction_amount as i32;
         let client = sqlx::query_as!(ClientModel, "WITH updated_transaction AS (INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)) UPDATE clients SET balance = $5 WHERE id = $1 RETURNING *", id, transaction_amount, description, transaction_type, balance)
-            .fetch_one(&mut *self.conn)
+            .fetch_one(self.conn)
             .await?;
 
         Ok(client)
@@ -101,7 +101,7 @@ impl Client for ClientRepository<'_> {
                 "SELECT * FROM transactions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 10",
                 client.id
             )
-            .fetch_all(&mut *self.conn)
+            .fetch_all(self.conn)
             .await?;
 
             let res: ExtratoModel = (client, transactions).into();
