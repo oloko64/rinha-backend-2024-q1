@@ -42,16 +42,16 @@ pub struct SaldoModel {
 }
 
 pub trait Client {
-    async fn find_client(&mut self, id: i32) -> Result<Option<ClientModel>, ApiError>;
+    async fn find_client(&self, id: i32) -> Result<Option<ClientModel>, ApiError>;
     async fn update_balance(
-        &mut self,
+        &self,
         id: i32,
         balance: i32,
         transaction_amount: u32,
         description: String,
         transaction_type: TransactionType,
     ) -> Result<ClientModel, ApiError>;
-    async fn find_extrato(&mut self, id: i32) -> Result<Option<ExtratoModel>, ApiError>;
+    async fn find_extrato(&self, id: i32) -> Result<Option<ExtratoModel>, ApiError>;
 }
 
 /// Handles all the operations related to the client
@@ -66,7 +66,7 @@ impl<'a> ClientRepository<'a> {
 }
 
 impl Client for ClientRepository<'_> {
-    async fn find_client(&mut self, id: i32) -> Result<Option<ClientModel>, ApiError> {
+    async fn find_client(&self, id: i32) -> Result<Option<ClientModel>, ApiError> {
         Ok(
             sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)
                 .fetch_optional(self.conn)
@@ -75,7 +75,7 @@ impl Client for ClientRepository<'_> {
     }
 
     async fn update_balance(
-        &mut self,
+        &self,
         id: i32,
         balance: i32,
         transaction_amount: u32,
@@ -92,7 +92,7 @@ impl Client for ClientRepository<'_> {
         Ok(client)
     }
 
-    async fn find_extrato(&mut self, id: i32) -> Result<Option<ExtratoModel>, ApiError> {
+    async fn find_extrato(&self, id: i32) -> Result<Option<ExtratoModel>, ApiError> {
         let client = self.find_client(id).await?;
 
         if let Some(client) = client {
