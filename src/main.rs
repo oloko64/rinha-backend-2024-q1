@@ -20,6 +20,7 @@ type DbPool = Arc<AppState>;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv().ok();
     let max_connections = env::var("MAX_CONNECTIONS")
         .ok()
         .and_then(|m| m.parse::<u32>().ok())
