@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   api1: &app1
-  image: oloko64/rinha-rust-2024-q1:latest
+    image: oloko64/rinha-rust-2024-q1:latest
     hostname: api1
     network_mode: host
     environment:
