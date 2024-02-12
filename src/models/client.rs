@@ -66,6 +66,7 @@ impl<'a> ClientRepository<'a> {
 }
 
 impl Client for ClientRepository<'_> {
+    // I could just check if the user id is between 1 and 5, but found that a bit too much hardcoded, and didn't help that much in the results
     async fn find_client(&self, id: i32) -> Result<Option<ClientModel>, ApiError> {
         Ok(
             sqlx::query_as!(ClientModel, "SELECT * FROM clients WHERE id = $1", id)

@@ -65,7 +65,7 @@ pub async fn make_transaction(
 
 #[inline]
 fn validate_transaction_desc_size(desc: &str) -> Result<bool, ApiError> {
-    if (1..11).contains(&desc.chars().count()) {
+    if (1..11).contains(&desc.len()) {
         return Ok(true);
     }
     Err(ApiError::unprocessable_entity())
