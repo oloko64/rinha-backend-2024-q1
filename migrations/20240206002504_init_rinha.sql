@@ -17,7 +17,7 @@ CREATE TABLE transactions (
 );
 
 CREATE INDEX transactions_client_id_index ON transactions(client_id);
-CREATE INDEX transactions_created_at_index ON transactions(created_at);
+CREATE INDEX transactions_created_at_index ON transactions(created_at DESC);
 
 INSERT INTO clients (balance_limit, balance) VALUES (100000, 0);
 INSERT INTO clients (balance_limit, balance) VALUES (80000, 0);
