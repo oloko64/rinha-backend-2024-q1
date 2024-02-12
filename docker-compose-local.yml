@@ -10,7 +10,7 @@ services:
     environment:
       PORT: 3000
       DATABASE_URL: postgres://rinha:rinha@localhost:5432/rinha
-      MAX_CONNECTIONS: 5
+      MAX_CONNECTIONS: 10
     depends_on:
       - db
     expose:
@@ -27,7 +27,7 @@ services:
     environment:
       PORT: 3001
       DATABASE_URL: postgres://rinha:rinha@localhost:5432/rinha
-      MAX_CONNECTIONS: 5
+      MAX_CONNECTIONS: 10
 
   nginx:
     image: nginx:latest
@@ -49,7 +49,7 @@ services:
     image: postgres:16
     volumes:
       - ./db:/docker-entrypoint-initdb.d
-    command: postgres -c log_min_messages=FATAL
+    command: postgres -c log_min_messages=FATAL -c max_connections=50 -c shared_buffers=128MB -c fsync=off -c synchronous_commit=off -c checkpoint_timeout=1d -c full_page_writes=false
     network_mode: host
     environment:
       POSTGRES_USER: rinha
