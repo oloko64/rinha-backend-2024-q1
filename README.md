@@ -36,6 +36,12 @@ O teste padrao consta com 340 usuarios simultaneos, este teste foi feito com 107
 
 <img src="https://i.imgur.com/W1QyPZ1.png" alt="logo postgres" width="800" height="auto">
 
+### Novo teste
+
+Teste atualizado com mais garantias de concorrencia.
+
+<img src="https://i.imgur.com/QazIykt.png" alt="logo postgres" width="800" height="auto">
+
 ---
 
 ### Menções
