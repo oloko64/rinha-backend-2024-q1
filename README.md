@@ -47,5 +47,5 @@ Teste atualizado com mais garantias de concorrencia.
 ### Menções
 
 - [Artur Sampaio](https://github.com/arturvrsampaio) -> Dicas de otimizações do banco.
-- [Rodolfo](https://github.com/RodolphoVSantoro) -> Dicas de otimizações do código.
+- [Rodolpho](https://github.com/RodolphoVSantoro) -> Dicas de otimizações do código.
 - [Rafael Telles](https://github.com/rafael-telles) -> Dicas de otimizações gerais e como achar pontos de melhora.
