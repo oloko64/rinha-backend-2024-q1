@@ -23,5 +23,7 @@ pub struct TransactionModel {
     pub amount: i32,
     pub description: String,
     pub r#type: String,
+    pub nt: i32,
+    pub valid: bool,
     pub created_at: sqlx::types::chrono::NaiveDateTime,
 }
