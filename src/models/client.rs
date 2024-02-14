@@ -1,3 +1,4 @@
+use chrono::Utc;
 use sqlx::{prelude::FromRow, PgPool};
 
 use crate::{
@@ -10,6 +11,7 @@ pub struct ClientModel {
     pub id: i32,
     pub balance_limit: i32,
     pub balance: i32,
+    pub last_nt: i32,
     pub created_at: sqlx::types::chrono::NaiveDateTime,
 }
 
@@ -91,7 +93,13 @@ impl Client for ClientRepository<'_> {
         let transaction_type: &str = transaction_type.into();
         // TODO: Not a good idea to use cast u32 to i32 but for this test context is ok, as all the values are in range of i32
         let transaction_amount = transaction_amount as i32;
-        let client = sqlx::query_as!(ClientModel, "WITH updated_transaction AS (INSERT INTO transactions (client_id, amount, description, type) VALUES ($1, $2, $3, $4)) UPDATE clients SET balance = $5 WHERE id = $1 RETURNING *", id, transaction_amount, description, transaction_type, new_balance)
+        let nt = (client.last_nt + 1) % 10;
+        let current_time = Utc::now().naive_utc();
+        let client = sqlx::query_as!(ClientModel, 
+            r###"
+            with update_transaction AS (UPDATE transactions set amount = $2, valid=true, description = $3, type = $4, created_at = $7 where client_id = $1 and nt = $5) 
+            UPDATE clients SET balance = $6, last_nt=$5 WHERE id = $1 RETURNING *
+            "###, id, transaction_amount, description, transaction_type, nt, new_balance, current_time)
             .fetch_one(&mut *transaction)
             .await?;
 
@@ -113,7 +121,7 @@ impl Client for ClientRepository<'_> {
             client.id
         )
         .fetch_all(&mut *transaction)
-        .await?;
+        .await?.into_iter().filter(|t| t.valid).collect::<Vec<_>>();
 
         let res: ExtratoModel = (client, transactions).into();
 
